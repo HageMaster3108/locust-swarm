@@ -50,11 +50,15 @@ def update_master_security_group(config):
 
     if slave_group and master_group:
         try:
+            if master_group.rules == []:
+                master_group.vpc_id = None
             master_group.authorize(src_group=slave_group)
         except:
             pass
 
         try:
+            if slave_group.rules == []:
+                slave_group.vpc_id = None
             slave_group.authorize(src_group=master_group)
         except:
             pass
