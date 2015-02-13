@@ -97,10 +97,20 @@ def swarm_up_slaves(args):
 
     update_master_security_group(cfg)
 
-    # TODO: Hack for now, should check for ssh-ability
-    time.sleep(5)
+    tries = 0
+    while True:
+        active_slaves = get_slave_reservations(cfg)
+        if len(active_slaves) == args.num_slaves:
+            logging.info("Success. All {0} slaves online.".format(args.num_slaves))
+            break
+        elif tries > 60:
+            logging.warning("Timeout. Only {0} of {1} slave instances have responded.".format(len(active_slaves), args.num_slaves))
+            break
+        else:
+            tries += 1
+            time.sleep(5)
 
-    _update_role_defs(get_slave_reservations(cfg), 'slave')
+    _update_role_defs(active_slaves, 'slave')
     env.user = cfg.get('fabric', 'user', None)
     env.key_filename = cfg.get('fabric', 'key_filename', None)
     env.parallel = True
