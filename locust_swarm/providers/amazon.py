@@ -5,6 +5,7 @@ from boto.ec2 import connect_to_region
 from ..config import DEFAULT_MASTER_ROLE_NAME
 from ..config import DEFAULT_SLAVE_ROLE_NAME
 from ..config import DEFAULT_CUSTOM_TAG_NAME
+from ..config import DEFAULT_INSTANCE_TAG_NAME
 
 from time import sleep
 
@@ -96,7 +97,7 @@ def _run_instances_from_config(config, role_name):
     ami_id = config.get('aws', 'ami_id')
     ami_instance_type = config.get('aws', 'ami_instance_type')
     aws_key_name = config.get('aws', 'aws_key_name', None)
-    tag_dict = {DEFAULT_CUSTOM_TAG_NAME: role_name}
+    tag_dict = {DEFAULT_CUSTOM_TAG_NAME: role_name, DEFAULT_INSTANCE_TAG_NAME: role_name.replace('-', ' ').title()}
 
     security_group = _get_or_create_security_group_from_role(
         aws_region,
