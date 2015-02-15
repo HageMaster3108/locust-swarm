@@ -200,10 +200,10 @@ def _get_or_create_security_group(
 
 
 def _get_security_group(conn, security_group_name):
-    try:
-        return conn.get_all_security_groups([security_group_name])[0]
-    except:
-        return None
+    for security_group in conn.get_all_security_groups():
+        if security_group_name == security_group.name:
+            return security_group
+    return None
 
 
 def _create_security_group(conn,
