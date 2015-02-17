@@ -63,16 +63,22 @@ def update_master_security_group(config):
 
     if slave_group and master_group:
         try:
-            if master_group.rules == []:
-                master_group.vpc_id = None
-            master_group.authorize(src_group=slave_group)
+            if master_group.vpc_id:
+                master_group.authorize(ip_protocol='icmp', from_port=-1, to_port=-1, src_group=slave_group)
+                master_group.authorize(ip_protocol='tcp', from_port=0, to_port=65535, src_group=slave_group)
+                master_group.authorize(ip_protocol='udp', from_port=0, to_port=65535, src_group=slave_group)
+            else:
+                master_group.authorize(src_group=slave_group)
         except:
             pass
 
         try:
-            if slave_group.rules == []:
-                slave_group.vpc_id = None
-            slave_group.authorize(src_group=master_group)
+            if slave_group.vpc_id:
+                slave_group.authorize(ip_protocol='icmp', from_port=-1, to_port=-1, src_group=master_group)
+                slave_group.authorize(ip_protocol='tcp', from_port=0, to_port=65535, src_group=master_group)
+                slave_group.authorize(ip_protocol='udp', from_port=0, to_port=65535, src_group=master_group)
+            else:
+                slave_group.authorize(src_group=master_group)
         except:
             pass
 
