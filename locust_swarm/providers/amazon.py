@@ -41,11 +41,17 @@ def get_slave_reservations(config):
 
 
 def create_master(config, security_group):
-    return _run_instances_from_config(config, DEFAULT_MASTER_ROLE_NAME, security_group)
+    return _run_instances_from_config(
+        config,
+        DEFAULT_MASTER_ROLE_NAME,
+        security_group)
 
 
 def create_slave(config, security_group):
-    return _run_instances_from_config(config, DEFAULT_SLAVE_ROLE_NAME, security_group)
+    return _run_instances_from_config(
+        config,
+        DEFAULT_SLAVE_ROLE_NAME,
+        security_group)
 
 
 def update_master_security_group(config):
@@ -64,9 +70,23 @@ def update_master_security_group(config):
     if slave_group and master_group:
         try:
             if master_group.vpc_id:
-                master_group.authorize(ip_protocol='icmp', from_port=-1, to_port=-1, src_group=slave_group)
-                master_group.authorize(ip_protocol='tcp', from_port=0, to_port=65535, src_group=slave_group)
-                master_group.authorize(ip_protocol='udp', from_port=0, to_port=65535, src_group=slave_group)
+                master_group.authorize(
+                    ip_protocol='icmp',
+                    from_port=-1,
+                    to_port=-1,
+                    src_group=slave_group)
+
+                master_group.authorize(
+                    ip_protocol='tcp',
+                    from_port=0,
+                    to_port=65535,
+                    src_group=slave_group)
+
+                master_group.authorize(
+                    ip_protocol='udp',
+                    from_port=0,
+                    to_port=65535,
+                    src_group=slave_group)
             else:
                 master_group.authorize(src_group=slave_group)
         except:
@@ -74,9 +94,23 @@ def update_master_security_group(config):
 
         try:
             if slave_group.vpc_id:
-                slave_group.authorize(ip_protocol='icmp', from_port=-1, to_port=-1, src_group=master_group)
-                slave_group.authorize(ip_protocol='tcp', from_port=0, to_port=65535, src_group=master_group)
-                slave_group.authorize(ip_protocol='udp', from_port=0, to_port=65535, src_group=master_group)
+                slave_group.authorize(
+                    ip_protocol='icmp',
+                    from_port=-1,
+                    to_port=-1,
+                    src_group=master_group)
+
+                slave_group.authorize(
+                    ip_protocol='tcp',
+                    from_port=0,
+                    to_port=65535,
+                    src_group=master_group)
+
+                slave_group.authorize(
+                    ip_protocol='udp',
+                    from_port=0,
+                    to_port=65535,
+                    src_group=master_group)
             else:
                 slave_group.authorize(src_group=master_group)
         except:
@@ -115,7 +149,9 @@ def _run_instances_from_config(config, role_name, security_group):
     ami_id = config.get('aws', 'ami_id')
     ami_instance_type = config.get('aws', 'ami_instance_type')
     aws_key_name = config.get('aws', 'aws_key_name', None)
-    tag_dict = {DEFAULT_CUSTOM_TAG_NAME: role_name, DEFAULT_INSTANCE_TAG_NAME: role_name.replace('-', ' ').title()}
+    tag_dict = {
+        DEFAULT_CUSTOM_TAG_NAME: role_name,
+        DEFAULT_INSTANCE_TAG_NAME: role_name.replace('-', ' ').title()}
 
     security_group_ids = [security_group.id] if security_group else []
 

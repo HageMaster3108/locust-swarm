@@ -69,7 +69,8 @@ def swarm_up_master(args):
 
     cfg = get_config(args.config)
 
-    security_group = get_security_group_from_role(cfg, DEFAULT_MASTER_ROLE_NAME)
+    security_group = get_security_group_from_role(
+        cfg, DEFAULT_MASTER_ROLE_NAME)
 
     create_master(cfg, security_group)
 
@@ -150,7 +151,9 @@ def _bootstrap(abs_bootstrap_dir_path):
         sudo("chmod +x /tmp/locust/{0}/bootstrap.sh".format(dir_name))
         sudo("/tmp/locust/{0}/bootstrap.sh".format(dir_name))
 
-def _wait_for_slave_reservations(cfg, reservations_num, max_tries=30, sleep_interval=5):
+
+def _wait_for_slave_reservations(
+        cfg, reservations_num, max_tries=30, sleep_interval=5):
     tries = 0
     online_hosts = []
     while True:
@@ -158,7 +161,9 @@ def _wait_for_slave_reservations(cfg, reservations_num, max_tries=30, sleep_inte
             logging.info("All {0} hosts are online".format(reservations_num))
             break
         if tries > max_tries:
-            logging.warning("Timeout. Only {0} of {1} hosts came online.".format(len(online_hosts), reservations_num))
+            logging.warning(
+                "Timeout. Only {0} of {1} hosts came online.".format(
+                    len(online_hosts), reservations_num))
             break
         reservations = get_slave_reservations(cfg)
         for reservation in reservations:
@@ -168,6 +173,7 @@ def _wait_for_slave_reservations(cfg, reservations_num, max_tries=30, sleep_inte
                 logging.info("Host {0} is now ssh-able.".format(ip_address))
         tries += 1
         time.sleep(sleep_interval)
+
 
 # TODO: Shouldn't leak these calls through
 def _update_role_defs(reservations, role_key):
