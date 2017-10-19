@@ -12,6 +12,7 @@ DEFAULT_MASTER_BOOTSTRAP_DIR = './bootstrap-master'
 DEFAULT_SLAVE_BOOTSTRAP_DIR = './bootstrap-slave'
 DEFAULT_NUM_SLAVES = 5
 DEFAULT_CUSTOM_TAG_NAME = 'MachineRole'
+DEFAULT_INSTANCE_TAG_NAME = 'Name'
 
 
 def _parse(path_to_config=DEFAULT_CFG_FILEPATH):

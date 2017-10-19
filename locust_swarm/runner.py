@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 from config import get_config
+from config import DEFAULT_SLAVE_ROLE_NAME
+from config import DEFAULT_MASTER_ROLE_NAME
 from fabric.api import env
 from fabric.api import put
 from fabric.api import roles
@@ -12,12 +14,14 @@ from fabric.state import connections
 from fabric.tasks import execute
 from helpers import get_abs_path
 from helpers import is_fabricable
+from helpers import can_ssh
 import logging
 from multiprocessing import Pool
 import os
 from providers.amazon import get_master_ip_address
 from providers.amazon import get_master_reservations
 from providers.amazon import get_slave_reservations
+from providers.amazon import get_security_group_from_role
 from providers.amazon import create_master
 from providers.amazon import create_slave
 from providers.amazon import update_master_security_group
@@ -64,7 +68,11 @@ def swarm_up_master(args):
     _validate_dirs(args)
 
     cfg = get_config(args.config)
-    create_master(cfg)
+
+    security_group = get_security_group_from_role(
+        cfg, DEFAULT_MASTER_ROLE_NAME)
+
+    create_master(cfg, security_group)
 
     _update_role_defs(get_master_reservations(cfg), 'master')
     env.user = cfg.get('fabric', 'user', None)
@@ -85,21 +93,21 @@ def swarm_up_slaves(args):
 
     master_ip_address = get_master_ip_address(cfg)
 
+    security_group = get_security_group_from_role(cfg, DEFAULT_SLAVE_ROLE_NAME)
+
     if not master_ip_address:
         raise Exception("Unable to start slaves without a master. Please "
                         "bring up a master first.")
 
     for i in xrange(args.num_slaves):
-        pool.apply_async(create_slave, (cfg,))
+        pool.apply_async(create_slave, (cfg, security_group))
 
     pool.close()
     pool.join()
 
+    _wait_for_slave_reservations(cfg, args.num_slaves)
+
     update_master_security_group(cfg)
-
-    # TODO: Hack for now, should check for ssh-ability
-    time.sleep(5)
-
     _update_role_defs(get_slave_reservations(cfg), 'slave')
     env.user = cfg.get('fabric', 'user', None)
     env.key_filename = cfg.get('fabric', 'key_filename', None)
@@ -142,6 +150,29 @@ def _bootstrap(abs_bootstrap_dir_path):
         put(abs_bootstrap_dir_path, '/tmp/locust/')
         sudo("chmod +x /tmp/locust/{0}/bootstrap.sh".format(dir_name))
         sudo("/tmp/locust/{0}/bootstrap.sh".format(dir_name))
+
+
+def _wait_for_slave_reservations(
+        cfg, reservations_num, max_tries=30, sleep_interval=5):
+    tries = 0
+    online_hosts = []
+    while True:
+        if (len(online_hosts) == reservations_num):
+            logging.info("All {0} hosts are online".format(reservations_num))
+            break
+        if tries > max_tries:
+            logging.warning(
+                "Timeout. Only {0} of {1} hosts came online.".format(
+                    len(online_hosts), reservations_num))
+            break
+        reservations = get_slave_reservations(cfg)
+        for reservation in reservations:
+            ip_address = reservation.instances[0].ip_address
+            if ip_address not in online_hosts and can_ssh(ip_address):
+                online_hosts.append(ip_address)
+                logging.info("Host {0} is now ssh-able.".format(ip_address))
+        tries += 1
+        time.sleep(sleep_interval)
 
 
 # TODO: Shouldn't leak these calls through

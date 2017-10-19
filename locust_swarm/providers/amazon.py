@@ -5,6 +5,7 @@ from boto.ec2 import connect_to_region
 from ..config import DEFAULT_MASTER_ROLE_NAME
 from ..config import DEFAULT_SLAVE_ROLE_NAME
 from ..config import DEFAULT_CUSTOM_TAG_NAME
+from ..config import DEFAULT_INSTANCE_TAG_NAME
 
 from time import sleep
 
@@ -23,16 +24,34 @@ def get_master_ip_address(config):
     return None
 
 
+def get_security_group_from_role(config, role_name):
+    aws_region = config.get('aws', 'aws_region')
+    aws_access_key_id = config.get('aws', 'access_key_id')
+    aws_secret_access_key = config.get('aws', 'secret_access_key')
+
+    return _get_or_create_security_group_from_role(
+        aws_region,
+        aws_access_key_id,
+        aws_secret_access_key,
+        role_name)
+
+
 def get_slave_reservations(config):
     return _get_instances_by_role(config, DEFAULT_SLAVE_ROLE_NAME)
 
 
-def create_master(config):
-    return _run_instances_from_config(config, DEFAULT_MASTER_ROLE_NAME)
+def create_master(config, security_group):
+    return _run_instances_from_config(
+        config,
+        DEFAULT_MASTER_ROLE_NAME,
+        security_group)
 
 
-def create_slave(config):
-    return _run_instances_from_config(config, DEFAULT_SLAVE_ROLE_NAME)
+def create_slave(config, security_group):
+    return _run_instances_from_config(
+        config,
+        DEFAULT_SLAVE_ROLE_NAME,
+        security_group)
 
 
 def update_master_security_group(config):
@@ -50,12 +69,50 @@ def update_master_security_group(config):
 
     if slave_group and master_group:
         try:
-            master_group.authorize(src_group=slave_group)
+            if master_group.vpc_id:
+                master_group.authorize(
+                    ip_protocol='icmp',
+                    from_port=-1,
+                    to_port=-1,
+                    src_group=slave_group)
+
+                master_group.authorize(
+                    ip_protocol='tcp',
+                    from_port=0,
+                    to_port=65535,
+                    src_group=slave_group)
+
+                master_group.authorize(
+                    ip_protocol='udp',
+                    from_port=0,
+                    to_port=65535,
+                    src_group=slave_group)
+            else:
+                master_group.authorize(src_group=slave_group)
         except:
             pass
 
         try:
-            slave_group.authorize(src_group=master_group)
+            if slave_group.vpc_id:
+                slave_group.authorize(
+                    ip_protocol='icmp',
+                    from_port=-1,
+                    to_port=-1,
+                    src_group=master_group)
+
+                slave_group.authorize(
+                    ip_protocol='tcp',
+                    from_port=0,
+                    to_port=65535,
+                    src_group=master_group)
+
+                slave_group.authorize(
+                    ip_protocol='udp',
+                    from_port=0,
+                    to_port=65535,
+                    src_group=master_group)
+            else:
+                slave_group.authorize(src_group=master_group)
         except:
             pass
 
@@ -85,20 +142,16 @@ def _get_instances(aws_region,
     return conn.get_all_instances(filters=filters)
 
 
-def _run_instances_from_config(config, role_name):
+def _run_instances_from_config(config, role_name, security_group):
     aws_region = config.get('aws', 'aws_region')
     aws_access_key_id = config.get('aws', 'access_key_id')
     aws_secret_access_key = config.get('aws', 'secret_access_key')
     ami_id = config.get('aws', 'ami_id')
     ami_instance_type = config.get('aws', 'ami_instance_type')
     aws_key_name = config.get('aws', 'aws_key_name', None)
-    tag_dict = {DEFAULT_CUSTOM_TAG_NAME: role_name}
-
-    security_group = _get_or_create_security_group_from_role(
-        aws_region,
-        aws_access_key_id,
-        aws_secret_access_key,
-        role_name)
+    tag_dict = {
+        DEFAULT_CUSTOM_TAG_NAME: role_name,
+        DEFAULT_INSTANCE_TAG_NAME: role_name.replace('-', ' ').title()}
 
     security_group_ids = [security_group.id] if security_group else []
 
@@ -197,10 +250,10 @@ def _get_or_create_security_group(
 
 
 def _get_security_group(conn, security_group_name):
-    try:
-        return conn.get_all_security_groups([security_group_name])[0]
-    except:
-        return None
+    for security_group in conn.get_all_security_groups():
+        if security_group_name == security_group.name:
+            return security_group
+    return None
 
 
 def _create_security_group(conn,
